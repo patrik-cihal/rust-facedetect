@@ -6,28 +6,23 @@ use crate::capture::Capture;
 use crate::window::Window;
 use opencv::core::{Rect, Scalar, Size};
 use opencv::{highgui, imgproc, objdetect, prelude::*, types};
+use std::time::{Instant};
 
 type Result<T> = opencv::Result<T>;
-
-const WINDOW_NAME: &str = "OpenCV Face Detection in Rust";
-const CASCADE_XML_FILE: &str = "haarcascade_frontalface_alt.xml";
-
-const CAPTURE_WIDTH: i32 = 800;
-const CAPTURE_HEIGHT: i32 = 600;
 
 const SCALE_FACTOR: f64 = 0.25f64;
 const SCALE_FACTOR_INV: i32 = (1f64 / SCALE_FACTOR) as i32;
 
 fn run() -> Result<()> {
-    let mut classifier = objdetect::CascadeClassifier::new(CASCADE_XML_FILE)?;
+    let mut classifier = objdetect::CascadeClassifier::new("./haarcascade_frontalface_alt2.xml")?;
 
-    let mut capture = Capture::create_default(CAPTURE_WIDTH, CAPTURE_HEIGHT)?;
+    let mut capture = Capture::create_default()?;
     let opened = capture.is_opened()?;
     if !opened {
         panic!("Unable to open default camera!");
     }
 
-    let window = Window::create(WINDOW_NAME, CAPTURE_WIDTH, CAPTURE_HEIGHT)?;
+    let window = Window::create("window capture".to_owned())?;
 
     run_main_loop(&mut capture, &mut classifier, &window)?;
 
@@ -45,18 +40,23 @@ fn run_main_loop(
             return Ok(());
         }
 
+        let start = Instant::now();
+
         let mut frame = match capture.grab_frame()? {
             Some(frame) => frame,
             None => continue,
         };
 
         let preprocessed = preprocess_image(&frame)?;
+
         let faces = detect_faces(classifier, preprocessed)?;
-        for face in faces {
+        for face in faces.iter() {
             draw_box_around_face(&mut frame, face)?;
         }
 
         window.show_image(&frame)?;
+
+        println!("found {} faces in {} ms", faces.len(), start.elapsed().as_millis());
     }
 }
 
@@ -67,7 +67,7 @@ fn preprocess_image(frame: &Mat) -> Result<Mat> {
 }
 
 fn convert_to_grayscale(frame: &Mat) -> Result<Mat> {
-    let mut gray = Mat::default()?;
+    let mut gray = Mat::default();
     imgproc::cvt_color(frame, &mut gray, imgproc::COLOR_BGR2GRAY, 0)?;
     Ok(gray)
 }
@@ -78,7 +78,7 @@ fn reduce_image_size(gray: &Mat, factor: f64) -> Result<Mat> {
         width: 0,
         height: 0,
     };
-    let mut reduced = Mat::default()?;
+    let mut reduced = Mat::default();
     imgproc::resize(
         gray,
         &mut reduced,
@@ -91,7 +91,7 @@ fn reduce_image_size(gray: &Mat, factor: f64) -> Result<Mat> {
 }
 
 fn equalize_image(reduced: &Mat) -> Result<Mat> {
-    let mut equalized = Mat::default()?;
+    let mut equalized = Mat::default();
     imgproc::equalize_hist(reduced, &mut equalized)?;
     Ok(equalized)
 }
@@ -100,33 +100,23 @@ fn detect_faces(
     classifier: &mut objdetect::CascadeClassifier,
     image: Mat,
 ) -> Result<types::VectorOfRect> {
-    const SCALE_FACTOR: f64 = 1.1;
-    const MIN_NEIGHBORS: i32 = 2;
-    const FLAGS: i32 = 0;
-    const MIN_FACE_SIZE: Size = Size {
-        width: 30,
-        height: 30,
-    };
-    const MAX_FACE_SIZE: Size = Size {
-        width: 0,
-        height: 0,
-    };
-
     let mut faces = types::VectorOfRect::new();
-    classifier.detect_multi_scale(
+    match classifier.detect_multi_scale(
         &image,
         &mut faces,
-        SCALE_FACTOR,
-        MIN_NEIGHBORS,
-        FLAGS,
-        MIN_FACE_SIZE,
-        MAX_FACE_SIZE,
-    )?;
+        1.1,
+        2,
+        0,
+        opencv::core::Size_ { width: 30, height: 30 },
+        opencv::core::Size_ { width: 0, height: 0 }
+    ) {
+        Err(err) => println!("{}", err),
+        Ok(_) => ()
+    }
     Ok(faces)
 }
 
 fn draw_box_around_face(frame: &mut Mat, face: Rect) -> Result<()> {
-    println!("found face {:?}", face);
     let scaled_face = Rect {
         x: face.x * SCALE_FACTOR_INV,
         y: face.y * SCALE_FACTOR_INV,

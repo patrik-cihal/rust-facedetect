@@ -1,4 +1,7 @@
-use opencv::{highgui, prelude::*};
+use opencv::{
+	highgui,
+	prelude::*,
+};
 
 type Result<T> = opencv::Result<T>;
 
@@ -7,11 +10,10 @@ pub(crate) struct Window {
 }
 
 impl Window {
-    pub fn create(name: &'_ str, width: i32, height: i32) -> Result<Self> {
-        highgui::named_window(name, highgui::WINDOW_GUI_NORMAL | highgui::WINDOW_KEEPRATIO)?;
-        highgui::resize_window(name, width, height)?;
+    pub fn create(name: String) -> Result<Self> {
+        highgui::named_window(&name, highgui::WINDOW_AUTOSIZE)?;
         Ok(Self {
-            name: name.to_owned(),
+            name,
         })
     }
 

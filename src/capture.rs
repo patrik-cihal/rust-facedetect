@@ -7,14 +7,12 @@ pub(crate) struct Capture {
 }
 
 impl Capture {
-    pub fn create_default(width: i32, height: i32) -> Result<Self> {
-        Self::create(0, width, height)
+    pub fn create_default() -> Result<Self> {
+        Self::create(0)
     }
 
-    pub fn create(index: i32, width: i32, height: i32) -> Result<Self> {
-        let mut capture = videoio::VideoCapture::new(index, videoio::CAP_ANY)?;
-        capture.set(videoio::CAP_PROP_FRAME_WIDTH, width as f64)?;
-        capture.set(videoio::CAP_PROP_FRAME_HEIGHT, height as f64)?;
+    pub fn create(index: i32) -> Result<Self> {
+        let capture = videoio::VideoCapture::new(index, videoio::CAP_ANY)?;
         Ok(Self { capture })
     }
 
@@ -27,7 +25,7 @@ impl Capture {
             return Ok(None);
         }
 
-        let mut frame = Mat::default()?;
+        let mut frame = Mat::default();
         self.capture.retrieve(&mut frame, 0)?;
         Ok(Some(frame))
     }
