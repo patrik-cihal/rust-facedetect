@@ -47,7 +47,9 @@ fn run_main_loop(
             None => continue,
         };
 
-        let preprocessed = preprocess_image(&frame)?;
+        let mut preprocessed = Mat::default();
+        opencv::imgproc::cvt_color(&frame, &mut preprocessed, opencv::imgproc::COLOR_BGR2GRAY, 0)?;
+        // let preprocessed = preprocess_image(&frame)?;
 
         let faces = detect_faces(classifier, preprocessed)?;
         for face in faces.iter() {
@@ -118,10 +120,10 @@ fn detect_faces(
 
 fn draw_box_around_face(frame: &mut Mat, face: Rect) -> Result<()> {
     let scaled_face = Rect {
-        x: face.x * SCALE_FACTOR_INV,
-        y: face.y * SCALE_FACTOR_INV,
-        width: face.width * SCALE_FACTOR_INV,
-        height: face.height * SCALE_FACTOR_INV,
+        x: face.x,
+        y: face.y,
+        width: face.width,
+        height: face.height,
     };
 
     const THICKNESS: i32 = 2;
